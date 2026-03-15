@@ -748,15 +748,18 @@ def dashboard():
     const fmtTs = (v) => v ? new Date(v).toLocaleTimeString() : "-";
     const badge = (txt, cls) => `<span class="badge ${cls}">${txt}</span>`;
     function esc(v) {
-      const s = String(v === null || v === undefined ? "" : v);
-      return s.replace(/[&<>\"']/g, function(ch) {
-        if (ch === "&") return "&amp;";
-        if (ch === "<") return "&lt;";
-        if (ch === ">") return "&gt;";
-        if (ch === "\"") return "&quot;";
-        if (ch === "'") return "&#39;";
-        return ch;
-      });
+      const s = String((v === null || v === undefined) ? "" : v);
+      let out = "";
+      for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i);
+        if (code === 38) out += "&amp;";
+        else if (code === 60) out += "&lt;";
+        else if (code === 62) out += "&gt;";
+        else if (code === 34) out += "&quot;";
+        else if (code === 39) out += "&#39;";
+        else out += s.charAt(i);
+      }
+      return out;
     }
 
     function statusBadge(s) {
@@ -773,11 +776,11 @@ def dashboard():
 
     function fillRuleForm(token, d) {
       if (!token || !d) return;
-      document.getElementById("nameEdit").value = d.name ?? "";
-      document.getElementById("buyRsiEdit").value = d.buy_rsi ?? "";
+      document.getElementById("nameEdit").value = (d.name === null || d.name === undefined) ? "" : d.name;
+      document.getElementById("buyRsiEdit").value = (d.buy_rsi === null || d.buy_rsi === undefined) ? "" : d.buy_rsi;
       document.getElementById("buyDojiEdit").checked = !!d.buy_use_doji;
-      document.getElementById("sellRsi").value = d.sell_rsi ?? "";
-      document.getElementById("sellPct").value = d.sell_size_pct ?? "";
+      document.getElementById("sellRsi").value = (d.sell_rsi === null || d.sell_rsi === undefined) ? "" : d.sell_rsi;
+      document.getElementById("sellPct").value = (d.sell_size_pct === null || d.sell_size_pct === undefined) ? "" : d.sell_size_pct;
       document.getElementById("sellDoji").checked = !!d.sell_use_doji;
     }
 
@@ -936,13 +939,13 @@ def dashboard():
           <td>${esc(f.name || "-")}</td>
           <td class="mono">${esc(f.address || "")}</td>
           <td>${f.active ? "yes" : "no"}</td>
-          <td>${esc(f.min_buy_usd ?? "-")}</td>
-          <td>${esc(f.min_sell_usd ?? "-")}</td>
-          <td>${esc(f.my_buy_bnb ?? "-")}</td>
-          <td>${esc(f.my_sell_pct ?? "-")}</td>
+          <td>${esc(fmt(f.min_buy_usd))}</td>
+          <td>${esc(fmt(f.min_sell_usd))}</td>
+          <td>${esc(fmt(f.my_buy_bnb))}</td>
+          <td>${esc(fmt(f.my_sell_pct))}</td>
           <td>${esc(f.last_action || "-")}</td>
           <td class="mono">${esc(f.last_token || "-")}</td>
-          <td>${esc(f.last_usd ?? "-")}</td>
+          <td>${esc(fmt(f.last_usd))}</td>
           <td>${esc(f.last_action_ts ? new Date(f.last_action_ts).toLocaleTimeString() : "-")}</td>
           <td>
             <button data-follow-edit="${f.address}" class="btn-ghost">edit</button>
@@ -958,13 +961,13 @@ def dashboard():
           <div class="token-name">${esc(f.name || "Follow wallet")}</div>
           <div class="token-addr mono">${esc(f.address || "")}</div>
           <div class="token-row"><span class="label">Active</span><span>${f.active ? "yes" : "no"}</span></div>
-          <div class="token-row"><span class="label">Buy > USDT</span><span>${esc(f.min_buy_usd ?? "-")}</span></div>
-          <div class="token-row"><span class="label">Sell > USDT</span><span>${esc(f.min_sell_usd ?? "-")}</span></div>
-          <div class="token-row"><span class="label">My buy BNB</span><span>${esc(f.my_buy_bnb ?? "-")}</span></div>
-          <div class="token-row"><span class="label">My sell %</span><span>${esc(f.my_sell_pct ?? "-")}</span></div>
+          <div class="token-row"><span class="label">Buy > USDT</span><span>${esc(fmt(f.min_buy_usd))}</span></div>
+          <div class="token-row"><span class="label">Sell > USDT</span><span>${esc(fmt(f.min_sell_usd))}</span></div>
+          <div class="token-row"><span class="label">My buy BNB</span><span>${esc(fmt(f.my_buy_bnb))}</span></div>
+          <div class="token-row"><span class="label">My sell %</span><span>${esc(fmt(f.my_sell_pct))}</span></div>
           <div class="token-row"><span class="label">Last action</span><span>${esc(f.last_action || "-")}</span></div>
           <div class="token-row"><span class="label">Last token</span><span class="mono">${esc(f.last_token || "-")}</span></div>
-          <div class="token-row"><span class="label">Last USD</span><span>${esc(f.last_usd ?? "-")}</span></div>
+          <div class="token-row"><span class="label">Last USD</span><span>${esc(fmt(f.last_usd))}</span></div>
           <div class="token-row"><span class="label">Last time</span><span>${esc(f.last_action_ts ? new Date(f.last_action_ts).toLocaleTimeString() : "-")}</span></div>
           <div class="token-actions">
             <button data-follow-edit="${f.address}" class="btn-ghost">edit</button>
