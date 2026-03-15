@@ -1333,8 +1333,29 @@ def _migrate_state():
 _migrate_state()
 
 # ---------------- DATA ----------------
-def fetch_candles(token):
-    url=f"https://api.dexscreener.com/latest/dex/ohlc/bsc/{token}?interval=15m&limit=100"
+def _pair_score(pair):
+    try:
+        liq = float((pair.get("liquidity") or {}).get("usd") or 0)
+        vol = float((pair.get("volume") or {}).get("h24") or 0)
+        return liq, vol
+    except Exception:
+        return 0.0, 0.0
+
+def _dexscreener_pairs(token):
+    try:
+        url=f"https://api.dexscreener.com/latest/dex/tokens/{token}"
+        r = session.get(url, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        pairs = [p for p in (data.get("pairs") or []) if p.get("chainId") == "bsc"]
+        pairs.sort(key=_pair_score, reverse=True)
+        return pairs
+    except Exception as e:
+        logger.warning("pairs lookup failed for %s: %s", token, e)
+        return []
+
+def _fetch_ohlc(pair_or_token):
+    url=f"https://api.dexscreener.com/latest/dex/ohlc/bsc/{pair_or_token}?interval=15m&limit=100"
     try:
         r = session.get(url, timeout=10)
         r.raise_for_status()
@@ -1351,21 +1372,38 @@ def fetch_candles(token):
             return None, "INSUFFICIENT_CANDLES"
         return parsed, None
     except Exception as e:
-        logger.warning("fetch_candles failed for %s: %s", token, e)
+        logger.warning("fetch_candles failed for %s: %s", pair_or_token, e)
         return None, "FETCH_ERROR"
 
+def fetch_candles(token):
+    pairs = _dexscreener_pairs(token)
+    last_err = None
+    if pairs:
+        for p in pairs:
+            pair_addr = p.get("pairAddress")
+            if not pair_addr:
+                continue
+            parsed, err = _fetch_ohlc(pair_addr)
+            if parsed is not None:
+                return parsed, None
+            last_err = err
+        return None, last_err or "INSUFFICIENT_CANDLES"
+    parsed, err = _fetch_ohlc(token)
+    if parsed is not None:
+        return parsed, None
+    return None, err or "NO_PAIR"
+
 def get_price_usd(token):
-    try:
-        url=f"https://api.dexscreener.com/latest/dex/tokens/{token}"
-        r = session.get(url, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        pairs = data.get("pairs") or []
-        if not pairs:
-            return None
-        return float(pairs[0]["priceUsd"])
-    except Exception:
-        return None
+    pairs = _dexscreener_pairs(token)
+    for p in pairs:
+        price = p.get("priceUsd")
+        if price is None:
+            continue
+        try:
+            return float(price)
+        except Exception:
+            continue
+    return None
 
 def get_bnb_price_usd():
     global bnb_price_cache, bnb_price_ts
@@ -1380,14 +1418,7 @@ def get_bnb_price_usd():
     return price
 def get_price(token):
     try:
-        url=f"https://api.dexscreener.com/latest/dex/tokens/{token}"
-        r = session.get(url, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        pairs = data.get("pairs") or []
-        if not pairs:
-            return None
-        return float(pairs[0]["priceUsd"])
+        return get_price_usd(token)
     except Exception as e:
         logger.warning("get_price failed for %s: %s", token, e)
         return None
