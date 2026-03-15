@@ -1,3 +1,34 @@
 {
-  
+  "tokens": {
+    "0xE1aCb466421eD24Dd8bd381D1205baD0ad43Ca9c": {
+      "name": "quq",
+      "active": false,
+      "holding": false,
+      "entry": 0,
+      "sl": 0,
+      "buy_bnb": 0.1,
+      "holding_size": 0,
+      "status": "WAIT_NEXT_15M",
+      "last_price": null,
+      "last_rsi": null,
+      "last_doji": null,
+      "buy_rsi": 10.0,
+      "buy_use_doji": true,
+      "sell_rsi": 70.0,
+      "sell_use_doji": false,
+      "sell_size_pct": 100.0,
+      "last_update": "2026-03-15T11:06:40.517585+00:00",
+      "last_fetch": 1773571906,
+      "next_fetch": 1773572806
+    }
+  },
+  "wallet": {
+    "address_enc": "gAAAAABptcbx9zragFGW_pFSfQd9n64sP1lS8I98ILS-mNamDgvrY4dNi_00ZUrmZzXDBw5vNdFjIl8oAuFMYhF0-HS7Dka9Kr-LcqTm_zKBnciCdZuLWGKrxoXe0C9UOmHwuzU6hJUP",
+    "key_enc": "gAAAAABptcbxG702kzOQrpmgH8KDx6maggHREhdQiwoBn6BB1Yxhjt6ft5o8pXTEF9Z2QQO0U8XP2IqJAm-7NwSRlRWwx12r4BGyjJmVUg_5siaXMR4SLsm9o62w7iznC61dLnzOT_3FKoLM2griZjpyJDTbome5r7jwi8jQ6TjB3YoHLaZhi3Y="
+  },
+  "wallet_balance": 0.00300387,
+  "wallet_balance_ts": 1773578339,
+  "followers": [],
+  "follow_seen": [],
+  "follow_history": []
 }
