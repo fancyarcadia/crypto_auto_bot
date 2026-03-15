@@ -16,6 +16,7 @@ from cryptography.fernet import Fernet, InvalidToken
 import base64
 import hashlib
 import sys
+import re
 from waitress import serve
 from dotenv import load_dotenv
 
@@ -249,6 +250,20 @@ def log_event(kind, token=None, detail=None):
     }
     with state_lock:
         events.appendleft(evt)
+
+def _parse_float_field(data, key, default=0.0):
+    raw = data.get(key, default)
+    if raw is None:
+        raw = default
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    s = str(raw).strip()
+    if s == "":
+        return float(default)
+    s = s.replace(",", "")
+    if not re.match(r"^-?\d+(\.\d+)?$", s):
+        raise ValueError(f"{key} must be a number")
+    return float(s)
 
 def snapshot_state():
     acquired = state_lock.acquire(timeout=1)
@@ -630,8 +645,8 @@ def dashboard():
         <div id="tokenForm" class="controls" style="margin-bottom:10px;">
           <input id="nameInput" placeholder="Token name" style="flex:1;">
           <input id="tokenInput" placeholder="Token address" style="flex:2;">
-          <input id="buyInput" placeholder="Buy BNB" style="flex:1;">
-          <input id="buyRsi" placeholder="Buy RSI" style="flex:1;">
+          <input id="buyInput" type="number" step="any" placeholder="Buy BNB" style="flex:1;">
+          <input id="buyRsi" type="number" step="any" placeholder="Buy RSI" style="flex:1;">
           <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
             <input id="buyDoji" type="checkbox"> Buy Doji
           </label>
@@ -641,12 +656,12 @@ def dashboard():
         <div id="rulesForm" class="controls" style="margin-bottom:12px;">
           <select id="ruleToken" style="flex:2;"></select>
           <input id="nameEdit" placeholder="Token name" style="flex:1;">
-          <input id="buyRsiEdit" placeholder="Buy RSI" style="flex:1;">
+          <input id="buyRsiEdit" type="number" step="any" placeholder="Buy RSI" style="flex:1;">
           <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
             <input id="buyDojiEdit" type="checkbox"> Buy Doji
           </label>
-          <input id="sellRsi" placeholder="Sell RSI" style="flex:1;">
-          <input id="sellPct" placeholder="Sell % (0-100)" style="flex:1;">
+          <input id="sellRsi" type="number" step="any" placeholder="Sell RSI" style="flex:1;">
+          <input id="sellPct" type="number" step="any" placeholder="Sell % (0-100)" style="flex:1;">
           <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
             <input id="sellDoji" type="checkbox"> Doji
           </label>
@@ -698,10 +713,10 @@ def dashboard():
         <div id="followForm" class="controls" style="margin-bottom:10px;">
           <input id="followName" placeholder="Wallet name" style="flex:1;">
           <input id="followAddress" placeholder="Wallet address" style="flex:2;">
-          <input id="followMinBuy" placeholder="Buy > USDT" style="flex:1;">
-          <input id="followMinSell" placeholder="Sell > USDT" style="flex:1;">
-          <input id="followMyBuy" placeholder="My buy BNB" style="flex:1;">
-          <input id="followMySell" placeholder="My sell %" style="flex:1;">
+          <input id="followMinBuy" type="number" step="any" placeholder="Buy > USDT" style="flex:1;">
+          <input id="followMinSell" type="number" step="any" placeholder="Sell > USDT" style="flex:1;">
+          <input id="followMyBuy" type="number" step="any" placeholder="My buy BNB" style="flex:1;">
+          <input id="followMySell" type="number" step="any" placeholder="My sell %" style="flex:1;">
           <button id="followSave" class="btn">Save</button>
           <button id="followNew" class="btn-ghost">New</button>
         </div>
@@ -2243,6 +2258,13 @@ def api_follow_add():
     if not address:
         return jsonify({"error": "address required"}), 400
     try:
+        min_buy_usd = _parse_float_field(data, "min_buy_usd", 0)
+        min_sell_usd = _parse_float_field(data, "min_sell_usd", 0)
+        my_buy_bnb = _parse_float_field(data, "my_buy_bnb", 0)
+        my_sell_pct = _parse_float_field(data, "my_sell_pct", 0)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    try:
         address = Web3.to_checksum_address(address)
     except Exception:
         return jsonify({"error": "invalid address"}), 400
@@ -2257,10 +2279,10 @@ def api_follow_add():
         "name": name,
         "address": address,
         "active": True,
-        "min_buy_usd": float(data.get("min_buy_usd", 0)),
-        "min_sell_usd": float(data.get("min_sell_usd", 0)),
-        "my_buy_bnb": float(data.get("my_buy_bnb", 0)),
-        "my_sell_pct": float(data.get("my_sell_pct", 0)),
+        "min_buy_usd": min_buy_usd,
+        "min_sell_usd": min_sell_usd,
+        "my_buy_bnb": my_buy_bnb,
+        "my_sell_pct": my_sell_pct,
         "last_block": last_block,
     }
     followers = _get_followers()
@@ -2278,6 +2300,13 @@ def api_follow_update():
     if not address:
         return jsonify({"error": "address required"}), 400
     try:
+        min_buy_usd = _parse_float_field(data, "min_buy_usd", None)
+        min_sell_usd = _parse_float_field(data, "min_sell_usd", None)
+        my_buy_bnb = _parse_float_field(data, "my_buy_bnb", None)
+        my_sell_pct = _parse_float_field(data, "my_sell_pct", None)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    try:
         address = Web3.to_checksum_address(address)
     except Exception:
         return jsonify({"error": "invalid address"}), 400
@@ -2287,10 +2316,14 @@ def api_follow_update():
             f["name"] = (data.get("name") or f.get("name") or "").strip()
             if "active" in data:
                 f["active"] = bool(data.get("active"))
-            f["min_buy_usd"] = float(data.get("min_buy_usd", f.get("min_buy_usd", 0)))
-            f["min_sell_usd"] = float(data.get("min_sell_usd", f.get("min_sell_usd", 0)))
-            f["my_buy_bnb"] = float(data.get("my_buy_bnb", f.get("my_buy_bnb", 0)))
-            f["my_sell_pct"] = float(data.get("my_sell_pct", f.get("my_sell_pct", 0)))
+            if min_buy_usd is not None:
+                f["min_buy_usd"] = min_buy_usd
+            if min_sell_usd is not None:
+                f["min_sell_usd"] = min_sell_usd
+            if my_buy_bnb is not None:
+                f["my_buy_bnb"] = my_buy_bnb
+            if my_sell_pct is not None:
+                f["my_sell_pct"] = my_sell_pct
     _save_followers(followers)
     return jsonify({"ok": True})
 
